@@ -18,3 +18,29 @@ jobs:
       run: |
         go install github.com/ffuf/ffuf/v2@latest
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+    - name: Start OWASP Juice Shop in Docker
+      run: |
+        # Запускаем контейнер в фоновом режиме (-d)
+        # Пробрасываем порт 3000 виртуальной машины на порт 3000 контейнера
+        docker run -d --name juice-shop -p 3000:3000 bkimminich/juice-shop:latest
+
+    - name: Wait for Juice Shop to be ready
+      run: |
+        # Приложению нужно несколько секунд для старта Node.js. 
+        # Опрашиваем корень или кастомный эндпоинт, пока не получим HTTP 200.
+        echo "Waiting for Juice Shop to start..."
+        timeout 60s sh -c 'until curl -sSf http://localhost:3000 > /dev/null; do sleep 2; done'
+        echo "Juice Shop is up and running!"
+
+    - name: Run your Security Tools / Tests
+      run: |
+        # На этом шаге Juice Shop доступен по адресу http://localhost:3000
+        # Здесь вы можете запустить ffuf, Cypress, ZAP или простые curl-запросы
+        curl -I http://localhost:3000
+
+    - name: Stop and Cleanup Container
+      if: always() # Выполнять даже если предыдущие тесты упали
+      run: |
+        docker stop juice-shop
+        docker rm juice-shop
