@@ -54,7 +54,7 @@ jobs:
 
     # Step 5: Сохраняем результаты сканирования в артефакты workflow
     - name: Upload scan results
-      uses: actions/artifacts@v4
+      uses: actions/artifact@v4
       if: always() # Сохранить отчет даже если сканирование завершилось с ошибкой
       with:
         name: ffuf-sql-injection-report
