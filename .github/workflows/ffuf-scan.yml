@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: checkout repository
       uses: actions/checkout@v4
 
     - name: Set up Go
@@ -14,54 +14,35 @@ jobs:
       with:
         go-version: 'stable'
 
-    - name: Install ffuf
+    - name: install ffuf
       run: |
         go install github.com/ffuf/ffuf/v2@latest
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-    - name: Start OWASP Juice Shop in Docker
-      run: |
-        # Запускаем контейнер в фоновом режиме (-d)
-        # Пробрасываем порт 3000 виртуальной машины на порт 3000 контейнера
-        docker run -d --name juice-shop -p 3000:3000 bkimminich/juice-shop:latest
+    - name: Juice in Docker
+      run: docker run -d --name juice-shop -p 3000:3000 bkimminich/juice-shop:latest
 
-    - name: Wait for Juice Shop to be ready
-      run: |
-        # Приложению нужно несколько секунд для старта Node.js. 
-        # Опрашиваем корень или кастомный эндпоинт, пока не получим HTTP 200.
-        echo "Waiting for Juice Shop to start..."
-        timeout 60s sh -c 'until curl -sSf http://localhost:3000 > /dev/null; do sleep 2; done'
-        echo "Juice Shop is up and running!"
+    - name: wait startup
+      run: sh -c 'for i in $(seq 0 2 58); do curl -sSf http://localhost:3000 > /dev/null 2>&1 && exit 0; sleep 2; done; exit 1'
 
-    - name: Run your Security Tools / Tests
-      run: |
-        # На этом шаге Juice Shop доступен по адресу http://localhost:3000
-        # Здесь вы можете запустить ffuf, Cypress, ZAP или простые curl-запросы
-        curl -I http://localhost:3000
-        
-        # Step 4: Запускаем сканирование страницы входа
-        # В Juice Shop аутентификация обычно происходит через API: /rest/user/login
-        # Мы заменяем значения email и password маркером FUZZ
-    - name: Run ffuf SQLi scan
+    - name: ffufing
       run: |
           ffuf -w sql_inj.lst \
                -u http://localhost:3000/rest/user/login \
                -X POST \
+               -fc 500
                -H "Content-Type: application/json" \
                -d '{"email": "FUZZ", "password": "password123"}' \
                -fr "Invalid email or password" \
                -o ffuf_results.json
 
-    # Step 5: Сохраняем результаты сканирования в артефакты workflow
-    - name: Upload scan results
+    - name: results
       uses: actions/upload-artifact@v4
-      if: always() # Сохранить отчет даже если сканирование завершилось с ошибкой
+      if: always() # сохраняем в любом случае
       with:
-        name: ffuf-sql-injection-report
+        name: ffuf-report
         path: ffuf_results.json
-          
+
     - name: Stop and Cleanup Container
-      if: always() # Выполнять даже если предыдущие тесты упали
-      run: |
-        docker stop juice-shop
-        docker rm juice-shop
+      if: always()
+      run: docker stop juice-shop; docker rm juice-shop
