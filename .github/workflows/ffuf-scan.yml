@@ -2,7 +2,7 @@ on:
   push:
     branches: [ "main" ]
 jobs:
-  fuzzing:
+  ffufing:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,7 +30,7 @@ jobs:
           ffuf -w sql_inj.lst \
                -u http://localhost:3000/rest/user/login \
                -X POST \
-               -fc 500
+               -fc 500 \
                -H "Content-Type: application/json" \
                -d '{"email": "FUZZ", "password": "password123"}' \
                -fr "Invalid email or password" \
