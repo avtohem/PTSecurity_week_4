@@ -34,15 +34,27 @@ jobs:
                -H "Content-Type: application/json" \
                -d '{"email": "FUZZ", "password": "password123"}' \
                -fr "Invalid email or password" \
+               -od responses/  \
                -o ffuf_results.json
-
+               
+    - name: tar responses
+      run: tar -czvf responses.tar.gz responses/
+      
+    - name: save responses
+      uses: actions/upload-artifact@v4
+      with:
+        name: ffuf-responses
+        path: responses.tar.gz
+        retention-days: 1
+    
     - name: results
       uses: actions/upload-artifact@v4
       if: always() # сохраняем в любом случае
       with:
         name: ffuf-report
         path: ffuf_results.json
-
+        retention-days: 1
+        
     - name: Stop and Cleanup Container
       if: always()
       run: docker stop juice-shop; docker rm juice-shop
